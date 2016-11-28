@@ -468,7 +468,7 @@ int _DLLSTATUS SetRegulationTRMC(REGULPARAMETER *RegulGiven)
 	// donne les pointeurs sur ces canaux dans le CHANNEL de la RegulGiven
 	AREGUL *RegulInMem;
 	AREGUL Regul;
-	int i,warning,k,notfake,princ;
+	int i,warning,k,notfake;
 
 	if (vartrmc == 0)
 		return _TRMC_NOT_INITIALIZED;
@@ -477,9 +477,9 @@ int _DLLSTATUS SetRegulationTRMC(REGULPARAMETER *RegulGiven)
 	switch (RegulGiven->Index) 
 	{
 	case  _MAIN_REGULATION :	
-		RegulInMem = &vartrmc->Regulation0;princ=1;break;
+		RegulInMem = &vartrmc->Regulation0;break;
 	case  _AUXILIARY_REGULATION :	
-		RegulInMem = &vartrmc->Regulation1;princ=0;
+		RegulInMem = &vartrmc->Regulation1;
 		if (RegulGiven->ThereIsABooster)
 			return _INVALID_REGULPARAMETER;
 		break;

@@ -115,7 +115,7 @@ int TrmcSetDelayComm(int *TimeToSend100Data)
 // if _NBESSAI trial are successfull, the value is accepted 
 // else DelayCommTrmc is incremented 
 { 
-	int i,err=0,tend,tbeg,dt; 
+	int i,err=0,tbeg,dt;
 	short int data = 0x7f32; 
 	short int diag; 
 	short int res; 
@@ -159,7 +159,6 @@ int TrmcSetDelayComm(int *TimeToSend100Data)
 	tbeg = ElapsedTimePlatform();  
 	for(i=0;i<100;i++)  
 		base2(0,data,&diag,&res); 
-	tend = (int ) ElapsedTimePlatform();  
 	*TimeToSend100Data = ElapsedTimePlatform() - tbeg; 
 	return _RETURN_OK; 
 }				// FIN SetDelayComm() 
@@ -864,7 +863,6 @@ int WriteFifoMeasure(ACHANNEL* Channel,int ForceStopAveraging)
 // return 1 if an avearge has been compelted 0 if not
 {
 	FIFO *fifopt=Channel->fifopt;
-	int NumRangeI,NumRangeV;
 
 	if (fifopt->data == 0)
 		return 0;
@@ -954,17 +952,6 @@ int WriteFifoMeasure(ACHANNEL* Channel,int ForceStopAveraging)
 
 		// Numbr of accumulated measures:
 		fifopt->data[fifopt->iWrite].Number = fifopt->Hit;
- 
-		// Status
-		if (fifopt->Status & _BIT_STATUS_AUTOCHANGE_I) //4
-			NumRangeI = -1;		// set the 3rd bit if a change I occured
-		else
-			NumRangeI = Channel->NumRangeI;
-
-		if (fifopt->Status & _BIT_STATUS_AUTOCHANGE_V) // 8
-			NumRangeV = -1;	// set the 4rd bit if a change I occured
-		else
-			NumRangeV = Channel->NumRangeV;
 
 		if 	(vartrmc->comm_error_in_callback) // set the 5th if comm error 
 			fifopt->Status |= _BIT_STATUS_COMM_ERROR_IN_CALLBACK;
