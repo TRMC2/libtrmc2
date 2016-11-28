@@ -1,0 +1,11 @@
+* Edit the makefile and set INSTALLDIR according to your taste
+* make
+* su
+* make install
+* (optional:) make cleanall
+
+If LIBDIR is not a standard library directory (/lib, /usr/lib and those
+listed in /etc/ld.so.conf), you should set LD_LIBRARY_PATH to LIBDIR or
+include LIBDIR in /etc/ld.so.conf and run /sbin/ldconfig.
+
+Have fun!
