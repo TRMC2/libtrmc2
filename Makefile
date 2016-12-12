@@ -13,6 +13,9 @@ CFLAGS=-O -W -Wall
 ########################################################################
 # Nothing should have to be configured below this point
 
+# OS detection
+OS_ID := $(shell grep '^ID=' /etc/os-release | sed 's/ID=//')
+
 # Library name and version numbers
 NAME=libtrmc2
 MAJOR=0
@@ -21,6 +24,11 @@ MINOR=0
 # Command options
 CC=gcc
 CFLAGS+=-fPIC  # can get extra flags from the environment
+ifeq ($(OS_ID), raspbian)
+    LDLIBS = -lwiringPi
+else
+    LDLIBS =
+endif
 
 # Files
 SONAME=$(NAME).so.$(MAJOR)
@@ -38,7 +46,7 @@ OBJS=$(SRC:%.c=%.o)
 # Rules
 
 $(LIB):	$(OBJS) Makefile
-	$(CC) -shared -Wl,-soname,$(SONAME) $(OBJS) -o $@
+	$(CC) -shared -Wl,-soname,$(SONAME) $(OBJS) $(LDLIBS) -o $@
 
 %.o:	%.c Makefile
 	$(CC) $(CFLAGS) -c $<

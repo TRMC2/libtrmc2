@@ -8,6 +8,14 @@
  * prevent bugs from locking hard your system.
  */
 
+/*
+ * Assume the Raspberry Pi is the only ARM platform this will ever be
+ * compiled for.
+ */
+#ifdef __arm__
+#define RASPBERRY
+#endif
+
 #include <stdlib.h>
 #include <sched.h>
 #include <signal.h>
@@ -18,22 +26,31 @@
 #include "TrmcDef.h"		/* definition of the VARTRMC type */
 #include "TrmcRunLib.h"		/* for SynchroCall[12]() */
 #include "TrmcPlatform.h"	/* functions exported by this file */
+#ifdef RASPBERRY
+#include <wiringPi.h>
+#endif
 
 /* I/O space of the serial ports. */
+#ifndef RASPBERRY
 #define BASE_COM1	0x3f8
 #define BASE_COM2	0x2f8
 #define COM_LENGTH	0x8
 #define MCR_OFFSET	0x4
 #define MSR_OFFSET	0x6
-
+#else
+#define PIN_CLOCK       0  /*  en wiringPI, physical: 11; BCM 17 */
+#define PIN_READ        1  /*  en wiringPI, physical: 12; BCM 18 */
+#define PIN_WRITTEN     2  /*  en wiringPI, physical: 13; BCM 27 */
+#endif
 
 /***********************************************************************
  * Communication through the serial port.
  */
 
 /* Addresses of the MCR and MSR registers of the serial port. */
+#ifndef RASPBERRY
 static unsigned short mcr, msr;
-
+#endif
 /*
  * This function sends the bit d through the data_out line and sets the
  * clock line to 0 then 1. It gets TWO responses, r0 and r1, on the
@@ -49,20 +66,36 @@ void SendBitPlatform(char d, short *r0, short *r1, short delay)
 	int i;
 
 	d = (d != 0);		/* d should be 0 or 1 */
-
+#ifndef RASPBERRY
 	for(i=0; i<delay; i++)
 		outb(d<<1 | 0, mcr);
 	*r0 = !(inb(msr) & 0x10);
 	for(i=0; i<delay; i++)
 		outb(d<<1 | 1, mcr);
 	*r1 = !(inb(msr) & 0x10);
+#else
+	for(i=0; i<delay; i++)
+	  digitalWrite(PIN_CLOCK,d<<1 | 0);
+	int msr = digitalRead(PIN_READ);
+	*r0 = !(msr & 0x10);
+	for(i=0; i<delay; i++)
+	  digitalWrite(PIN_CLOCK,d<<1 | 1);
+        msr = digitalRead(PIN_READ);
+	*r1 = !(msr & 0x10);
+#endif
+
 }
 
 /* Send final 0 and delay. */
 void SendFinalPlatform(short delay)
 {
+#ifndef RASPBERRY
 	while (delay--)
 		outb(0, mcr);
+#else
+	while (delay--)
+	  digitalWrite(PIN_CLOCK,0);
+#endif
 }
 
 
@@ -186,13 +219,14 @@ void quit_callback(int signum)
 int InitPlatform(void *ptr)
 {
 	VARTRMC *vartrmc = ptr;
-	unsigned long base;
 #ifndef NORMAL_SCHEDULE
 	struct sched_param priority;
 #endif
 	struct sigaction action;
 
 	/* Get write permission on the I/O space of the serial port. */
+#ifndef RASPBERRY
+	unsigned long base;
 	switch (vartrmc->com1) {
 		case _COM1: base = BASE_COM1; break;
 		case _COM2: base = BASE_COM2; break;
@@ -200,10 +234,16 @@ int InitPlatform(void *ptr)
 	}
 	if (ioperm(base, COM_LENGTH, 1) == -1)
 		return _COM_NOT_AVAILABLE;
-
-	/* Initialize globals. */
 	mcr = base + MCR_OFFSET;
 	msr = base + MSR_OFFSET;
+#else
+	if (wiringPiSetup() == -1)
+	  return _CANT_SETUP_WIRINGPI;
+	pinMode(PIN_CLOCK,OUTPUT);
+	pinMode(PIN_READ,INPUT);
+	pinMode(PIN_WRITTEN,OUTPUT);
+#endif
+	/* Initialize globals. */
 	trmc_globals = vartrmc;
 	timer_period = 1000 * vartrmc->periodinms;
 	sigemptyset(&sigset_alrm);
