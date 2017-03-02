@@ -63,28 +63,32 @@ static unsigned short mcr, msr;
  */
 void SendBitPlatform(char d, short *r0, short *r1, short delay)
 {
-	int i;
-
-	d = (d != 0);		/* d should be 0 or 1 */
+  d = (d != 0);		/* d should be 0 or 1 */
 #ifndef RASPBERRY
-	for(i=0; i<delay; i++)
-		outb(d<<1 | 0, mcr);
-	*r0 = !(inb(msr) & 0x10);
-	for(i=0; i<delay; i++)
-		outb(d<<1 | 1, mcr);
-	*r1 = !(inb(msr) & 0x10);
+  int i;
+  for(i=0; i<delay; i++)
+    outb(d<<1 | 0, mcr);
+  *r0 = !(inb(msr) & 0x10);
+  for(i=0; i<delay; i++)
+    outb(d<<1 | 1, mcr);
+  *r1 = !(inb(msr) & 0x10);
 #else
-	for(i=0; i<delay; i++)
-	  digitalWrite(PIN_CLOCK,d<<1 | 0);
-	int msr = digitalRead(PIN_READ);
-	*r0 = !(msr & 0x10);
-	for(i=0; i<delay; i++)
-	  digitalWrite(PIN_CLOCK,d<<1 | 1);
-        msr = digitalRead(PIN_READ);
-	*r1 = !(msr & 0x10);
+  // on ecrit delay d fois dans MCR(1) = data_out et simultanement 0 dans MCR(0)= clock
+  // on lit MSR(4)= datain ==> r0
+  // on ecrit delay d fois dans MCR(1) = data_out et simultanement 1 dans MCR(0)= clock
+  // on lit MSR(4)= datain ==> r1
+  digitalWrite(PIN_WRITTEN,!d);  // pins use negative logic
+  digitalWrite(PIN_CLOCK,!0);
+  delayMicroseconds(delay);
+  int msr = digitalRead(PIN_READ);
+  *r0 = !!(msr);  // XXX: testing
+  digitalWrite(PIN_CLOCK,!1);
+  delayMicroseconds(delay);
+  msr = digitalRead(PIN_READ);
+  *r1 = !!(msr);
 #endif
-
-}
+}     // FIN void SendBitPlatform(char d, short *r0, short *r1, short delay)
+// *************************************************************************
 
 /* Send final 0 and delay. */
 void SendFinalPlatform(short delay)
@@ -93,11 +97,12 @@ void SendFinalPlatform(short delay)
 	while (delay--)
 		outb(0, mcr);
 #else
-	while (delay--)
-	  digitalWrite(PIN_CLOCK,0);
+  digitalWrite(PIN_CLOCK,!0);
+  digitalWrite(PIN_WRITTEN,!0);
+  delayMicroseconds(delay);
 #endif
-}
-
+}     // FIN void SendFinalPlatform(short delay)
+// *************************************************************************
 
 /***********************************************************************
  * Time management.
