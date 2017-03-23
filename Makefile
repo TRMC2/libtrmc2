@@ -7,7 +7,7 @@
 INSTALLDIR=/usr/local
 LIBDIR=$(INSTALLDIR)/lib
 INCLUDEDIR=$(INSTALLDIR)/include
-CFLAGS=-O -W -Wall
+CFLAGS=-O -Wall -Wextra
 
 
 ########################################################################
@@ -33,8 +33,6 @@ endif
 # Files
 SONAME=$(NAME).so.$(MAJOR)
 LIB=$(SONAME).$(MINOR)
-DISTDIR=$(NAME).$(MAJOR).$(MINOR)
-TARBALL=$(DISTDIR).tar.gz
 HEADERS=Trmc.h TrmcBoard.h TrmcBoardA.h TrmcBoardB.h TrmcBoardC.h \
 	TrmcBoardD.h TrmcBoardE.h TrmcBoardF.h TrmcBoardG.h TrmcDac.h \
 	TrmcDef.h TrmcPlatform.h TrmcProto.h TrmcRegul.h TrmcRunLib.h
@@ -60,7 +58,7 @@ clean:
 distclean:	cleanall
 
 cleanall:
-	rm -f tags $(OBJS) $(LIB) $(TARBALL)
+	rm -f tags $(OBJS) $(LIB)
 
 install:	$(LIB)
 		cp -a $^ $(LIBDIR)
@@ -76,14 +74,6 @@ uninstall:
 		rm -f $(LIBDIR)/$(SONAME)
 		rm -f $(LIBDIR)/$(LIB)
 		rm -f $(INCLUDEDIR)/Trmc.h
-
-dist:		$(TARBALL)
-
-$(TARBALL):	Makefile INSTALL $(HEADERS) $(SRC)
-		mkdir $(DISTDIR)
-		cp -a $^ $(DISTDIR)
-		tar czf $@ $(DISTDIR)
-		rm -rf $(DISTDIR)
 
 # Dependencies
 

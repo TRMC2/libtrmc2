@@ -67,25 +67,21 @@ void SendBitPlatform(char d, short *r0, short *r1, short delay)
 #ifndef RASPBERRY
   int i;
   for(i=0; i<delay; i++)
-    outb(d<<1 | 0, mcr);
-  *r0 = !(inb(msr) & 0x10);
+    outb(d<<1 | 0, mcr);     /* data_out = d; clock = 0; */
+  *r0 = !(inb(msr) & 0x10);  /* *r0 = data_in;           */
   for(i=0; i<delay; i++)
-    outb(d<<1 | 1, mcr);
-  *r1 = !(inb(msr) & 0x10);
+    outb(d<<1 | 1, mcr);     /* data_out = d; clock = 1; */
+  *r1 = !(inb(msr) & 0x10);  /* *r1 = data_in;           */
 #else
-  // on ecrit delay d fois dans MCR(1) = data_out et simultanement 0 dans MCR(0)= clock
-  // on lit MSR(4)= datain ==> r0
-  // on ecrit delay d fois dans MCR(1) = data_out et simultanement 1 dans MCR(0)= clock
-  // on lit MSR(4)= datain ==> r1
   digitalWrite(PIN_WRITTEN,!d);  // pins use negative logic
   digitalWrite(PIN_CLOCK,!0);
   delayMicroseconds(delay);
-  int msr = digitalRead(PIN_READ);
-  *r0 = !!(msr);  // XXX: testing
+  int data_in = digitalRead(PIN_READ);
+  *r0 = !!(data_in);
   digitalWrite(PIN_CLOCK,!1);
   delayMicroseconds(delay);
-  msr = digitalRead(PIN_READ);
-  *r1 = !!(msr);
+  data_in = digitalRead(PIN_READ);
+  *r1 = !!(data_in);
 #endif
 }     // FIN void SendBitPlatform(char d, short *r0, short *r1, short delay)
 // *************************************************************************
