@@ -104,6 +104,7 @@ void SendFinalPlatform(short delay)
  * Time management.
  */
 
+static int platform_initialized;
 static struct itimerval interval;
 static sigset_t sigset_alrm;
 static enum { WAIT_FIRST, WAIT_SECOND } timer_state = WAIT_FIRST;
@@ -178,6 +179,8 @@ static void timer_callback(int signum)
  */
 int BeatPlatform(void)
 {
+	if (!platform_initialized)
+		return _TIMER_NOT_CAPABLE;
 	interval.it_value.tv_usec = 1000;
 	timer_on = 1;
 	timer_state = WAIT_FIRST;
@@ -280,5 +283,6 @@ int InitPlatform(void *ptr)
 	/* Stop the TRMC2 on termination. */
 	atexit(terminate);
 
+	platform_initialized = 1;
 	return _RETURN_OK;
 }
