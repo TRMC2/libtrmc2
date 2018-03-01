@@ -467,7 +467,7 @@ int MakeAllChannels()
 			fifopt->iRead = 0;
 			fifopt->iWrite = 0;
 			fifopt->AverageCounter = 0;
-			fifopt->Size = cpt->parameter.FifoSize;
+			fifopt->Size = cpt->parameter.FifoSize + 1; // allocated = useful size + 1
 			fifopt->data = (AMEASURE *)malloc(sizeof(AMEASURE)*fifopt->Size);
 			if (fifopt->data == 0)
 				return _CANNOT_ALLOCATE_MEM;
@@ -922,6 +922,10 @@ int WriteFifoMeasure(ACHANNEL* Channel,int ForceStopAveraging)
 	if ((fifopt->AverageCounter >= Channel->parameter.PreAveraging)
 		|| (ForceStopAveraging))
 	{
+		// If the fifo is full, drop the oldest item
+		if ((fifopt->iWrite+1)%fifopt->Size == fifopt->iRead)
+			fifopt->iRead = (fifopt->iRead+1)%fifopt->Size;
+
 		double x;
 		// Value:		
 		x =	fifopt->MeasureRawAverage/fifopt->Hit;

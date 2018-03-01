@@ -85,7 +85,7 @@ typedef struct
 	int Status;	
 	int iRead; 
 	int iWrite;  
-	int Size; // size of the fifo
+	int Size; // size allocated to the fifo = channel.parameter.FifoSize + 1
 	short int  	TimerForgetChange;	
 	AMEASURE  *data;
 } FIFO; 

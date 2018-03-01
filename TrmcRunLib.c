@@ -278,12 +278,13 @@ int _DLLSTATUS SetChannelTRMC(CHANNELPARAMETER *channel)
 		vartrmc->Channels[channel->Index].fifopt->data = 0;
 
 		// try to re-allocate
+		int allocatedSize = channel->FifoSize + 1;
 		pt = save;
 #ifdef powerc
 		free(pt);
-		pt = (AMEASURE *)malloc(channel->FifoSize*sizeof(AMEASURE));
+		pt = (AMEASURE *)malloc(allocatedSize*sizeof(AMEASURE));
 #else
-		pt = (AMEASURE *)realloc(pt,channel->FifoSize*sizeof(AMEASURE));
+		pt = (AMEASURE *)realloc(pt,allocatedSize*sizeof(AMEASURE));
 #endif
 		if (pt==0)
 		{
@@ -292,7 +293,7 @@ int _DLLSTATUS SetChannelTRMC(CHANNELPARAMETER *channel)
 			return _CANNOT_ALLOCATE_MEM;
 		}
 		// succesfull keep it
-		vartrmc->Channels[channel->Index].fifopt->Size = channel->FifoSize;
+		vartrmc->Channels[channel->Index].fifopt->Size = allocatedSize;
 		vartrmc->Channels[channel->Index].fifopt->data = pt;
 		vartrmc->Channels[channel->Index].fifopt->iRead = 0;
 		vartrmc->Channels[channel->Index].fifopt->iWrite = 0;
