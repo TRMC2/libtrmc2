@@ -3,7 +3,7 @@
 This library is intended for controlling the [TRMC2 temperature
 regulator][TRMC2] from Linux. It can work either on a 32 or 64-bit PC
 having a built-in serial port, or on a [Raspberry Pi][] running
-[Raspbian][].
+[Raspberry Pi OS][].
 
 The library was written by Jean-Christian Anglès d’Auriac, initially for
 Windows. Edgar Bonet contributed the Linux port (the file TrmcLin.c),
@@ -76,7 +76,7 @@ to the hardware:
   be disabled by compiling the library with the option
   `-DNORMAL_SCHEDULE`.
 
-[TRMC2]: http://www.neel.cnrs.fr/spip.php?article149&lang=en
+[TRMC2]: http://www.neel.cnrs.fr/spip.php?article862
 [Raspberry Pi]: https://www.raspberrypi.org/products/
-[Raspbian]: https://www.raspbian.org/
+[Raspberry Pi OS]: https://www.raspberrypi.org/downloads/raspberry-pi-os/
 [wiringPi]: http://wiringpi.com/
