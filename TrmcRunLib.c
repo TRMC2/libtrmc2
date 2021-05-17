@@ -426,6 +426,7 @@ int _DLLSTATUS GetChannelTRMC(int bywhat,CHANNELPARAMETER *channel)
 			channel->Index = i;
 			break;
 		}
+		// fallthrough
 	case _BYINDEX:
 		if ((channel->Index<0)|| (channel->Index>=vartrmc->NbofChannel))
 			return _NO_SUCH_CHANNEL;
