@@ -85,7 +85,7 @@ to the hardware:
   be disabled by compiling the library with the option
   `-DNORMAL_SCHEDULE`.
 
-[TRMC2]: http://www.neel.cnrs.fr/spip.php?article862
+[TRMC2]: http://neel-2007-2019.neel.cnrs.fr/spip.php?article862
 [Raspberry Pi]: https://www.raspberrypi.org/products/
 [Raspberry Pi OS]: https://www.raspberrypi.org/downloads/raspberry-pi-os/
 [wiringPi]: http://wiringpi.com/
