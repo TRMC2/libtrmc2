@@ -517,7 +517,7 @@ static int base1(short int code,
 
 	for (j=0;j<_SYNCHRO;j++) 
 		SendBitPlatform(0,&r0,&r1,vartrmc->DelayCommTrmc); 
-		SendBitPlatform(1,&r0,&r1,vartrmc->DelayCommTrmc); 
+	SendBitPlatform(1,&r0,&r1,vartrmc->DelayCommTrmc);
  
 	*diag = 0;
 	SendBitPlatform((char)(code&2),&r0,&r1,vartrmc->DelayCommTrmc);			// Send the bit c0  
