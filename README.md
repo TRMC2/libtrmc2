@@ -16,9 +16,18 @@ simplest way is by issuing the command:
 
     sudo apt install build-essential
 
-On the Raspberry Pi, you will also need the [wiringPi][] library:
+On the Raspberry Pi, you will also need the latest version of the
+[wiringPi][] library. Beware that Raspbian provides wiringPi 2.50, which
+is an outdated version that will not work on the Raspberry Pi&nbsp;4. If
+you have that version installed, you first have to remove it:
 
-    sudo apt install wiringpi
+    version=$(dpkg-query -Wf '${Version}' wiringpi)
+    if [ "$version" = "2.50" ]; then sudo apt -y purge wiringpi; fi
+
+Then, install wiringPi from the author's package:
+
+    curl -O https://project-downloads.drogon.net/wiringpi-latest.deb
+    sudo dpkg -i wiringpi-latest.deb
 
 The provided Makefile defaults to installing the shared library in
 /usr/local/lib and the header file in /usr/local/include. If you prefer
