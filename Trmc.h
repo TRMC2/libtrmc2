@@ -330,7 +330,9 @@ _EXTERN int _DLLSTATUS ReadValueTRMC(int index, AMEASURE *measure);
 #define _WRONG_ANSWER_IN_BASE				-37 
 #define _TIMER_NOT_CAPABLE					-29
 #define _INTERNAL_INCONSISTENCY				-44
-#define _CANT_SETUP_WIRINGPI                            -60
+#define _CANNOT_FIND_GPIO_CHIP				-60
+#define _CANNOT_FIND_GPIO_LINE				-61
+#define _CANNOT_RESERVE_GPIO_LINE			-62
 
 #define _BIT_RECENT_CHANGE					0x80000001          
 #define _BIT_STATUS_OVERLOAD				0x2  

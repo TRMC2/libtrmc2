@@ -17,17 +17,21 @@ CFLAGS=-O -Wall -Wextra
 OS_ID := $(shell grep '^ID=' /etc/os-release | sed 's/ID=//')
 
 # Library name and version numbers
-NAME=libtrmc2
-MAJOR=1
-MINOR=1
+NAME  = libtrmc2
+MAJOR = 2
+MINOR = 0
 
 # Command options
-CC=gcc
-CFLAGS+=-fPIC  # can get extra flags from the environment
+CC       = gcc
+CFLAGS  += -fPIC
+CPPFLAGS =
+LDLIBS   =
+
+# Use libgpiod on Raspbian. Otherwise assume this is a PC and use the
+# control lines of one of the first two serial ports.
 ifeq ($(OS_ID), raspbian)
-    LDLIBS = -lwiringPi
-else
-    LDLIBS =
+    TrmcLin.o: CPPFLAGS += -DRASPBERRY_PI
+    LDLIBS += -lgpiod
 endif
 
 # Files
@@ -47,7 +51,7 @@ $(LIB):	$(OBJS) Makefile
 	$(CC) -shared -Wl,-soname,$(SONAME) $(OBJS) $(LDLIBS) -o $@
 
 %.o:	%.c Makefile
-	$(CC) $(CFLAGS) -c $<
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $<
 
 tags:	$(HEADERS) $(SRC)
 	ctags $^

@@ -2,19 +2,26 @@
  *
  * TrmcLin.c: Platform dependent functions, Linux version.
  *
+ * If compiled with -DRASPBERRY_PI, the GPIO connector of the Raspberry
+ * Pi will be used for communicating with the TRMC2:
+ *   - clock:    GPIO17 (pin 11 of the GPIO connector)
+ *   - data_in:  GPIO18 (pin 12)
+ *   - data_out: GPIO27 (pin 13)
+ * The library then has to be linked against libgpiod (compiler option
+ * -lgpiod).
+ *
+ * If the option -DRASPBERRY_PI is _not_ provided, we assume this is a
+ * PC with standard serial ports, and we use the control lines of either
+ * of the first two ports (COM1/ttyS0, COM2/ttyS1) as follows:
+ *   - clock:    DTR (pin 4 of the DE-9 connector)
+ *   - data_in:  CTS (pin 8)
+ *   - data_out: RTS (pin 7)
+ *
  * For testing purposes, this can be compiled with -DNORMAL_SCHEDULE.
  * Then the resulting program will be scheduled as a normal (not
  * real-time) process. Timings will not be very good but this will
  * prevent bugs from locking hard your system.
  */
-
-/*
- * Assume the Raspberry Pi is the only ARM platform this will ever be
- * compiled for.
- */
-#ifdef __arm__
-#define RASPBERRY
-#endif
 
 #include <stdlib.h>
 #include <sched.h>
@@ -26,31 +33,62 @@
 #include "TrmcDef.h"		/* definition of the VARTRMC type */
 #include "TrmcRunLib.h"		/* for SynchroCall[12]() */
 #include "TrmcPlatform.h"	/* functions exported by this file */
-#ifdef RASPBERRY
-#include <wiringPi.h>
+#ifdef RASPBERRY_PI
+# include <time.h>
+# include <gpiod.h>
 #endif
 
-/* I/O space of the serial ports. */
-#ifndef RASPBERRY
-#define BASE_COM1	0x3f8
-#define BASE_COM2	0x2f8
-#define COM_LENGTH	0x8
-#define MCR_OFFSET	0x4
-#define MSR_OFFSET	0x6
+#ifdef RASPBERRY_PI
+# define GPIO_CHIP_NAME	"gpiochip0"
+# define CONSUMER		"libtrmc2"
+# define PIN_CLOCK		17  /* GPIO17, pin 11 */
+# define PIN_DATA_IN	18  /* GPIO18, pin 12 */
+# define PIN_DATA_OUT	27  /* GPIO27, pin 13 */
 #else
-#define PIN_CLOCK       0  /*  en wiringPI, physical: 11; BCM 17 */
-#define PIN_READ        1  /*  en wiringPI, physical: 12; BCM 18 */
-#define PIN_WRITTEN     2  /*  en wiringPI, physical: 13; BCM 27 */
+/* I/O space of the serial ports. */
+# define BASE_COM1	0x3f8
+# define BASE_COM2	0x2f8
+# define COM_LENGTH	0x8
+# define MCR_OFFSET	0x4
+# define MSR_OFFSET	0x6
 #endif
 
 /***********************************************************************
  * Communication through the serial port.
  */
 
+#ifdef RASPBERRY_PI
+struct gpiod_chip *gpio_chip;
+struct gpiod_line *line_clock, *line_data_in, *line_data_out;
+#else
 /* Addresses of the MCR and MSR registers of the serial port. */
-#ifndef RASPBERRY
 static unsigned short mcr, msr;
 #endif
+
+#ifdef RASPBERRY_PI
+/*
+ * Delay for the requested number of microseconds.
+ *
+ * The standard functions usleep(), nanosleep() and clock_nanosleep()
+ * suspend the calling process and thus end up sleeping way longer than
+ * requested. This, instead, delays by busy-waiting.
+ */
+static void delay_us(short delay)
+{
+	if (delay < 1) return;
+	struct timespec end, now;
+	clock_gettime(CLOCK_MONOTONIC, &end);
+	end.tv_nsec += delay * 1000L;
+	end.tv_sec  += end.tv_nsec / 1000000000;
+	end.tv_nsec %= 1000000000;
+	do
+		clock_gettime(CLOCK_MONOTONIC, &now);
+	while (now.tv_sec < end.tv_sec
+			|| (now.tv_sec == end.tv_sec
+				&& now.tv_nsec < end.tv_nsec));
+}
+#endif
+
 /*
  * This function sends the bit d through the data_out line and sets the
  * clock line to 0 then 1. It gets TWO responses, r0 and r1, on the
@@ -64,7 +102,15 @@ static unsigned short mcr, msr;
 void SendBitPlatform(char d, short *r0, short *r1, short delay)
 {
   d = (d != 0);		/* d should be 0 or 1 */
-#ifndef RASPBERRY
+#ifdef RASPBERRY_PI
+  gpiod_line_set_value(line_data_out, d);
+  gpiod_line_set_value(line_clock, 0);
+  delay_us(delay - 1);
+  *r0 = !!gpiod_line_get_value(line_data_in);
+  gpiod_line_set_value(line_clock, 1);
+  delay_us(delay - 1);
+  *r1 = !!gpiod_line_get_value(line_data_in);
+#else
   int i;
   for(i=0; i<delay; i++)
     outb(d<<1 | 0, mcr);     /* data_out = d; clock = 0; */
@@ -72,16 +118,6 @@ void SendBitPlatform(char d, short *r0, short *r1, short delay)
   for(i=0; i<delay; i++)
     outb(d<<1 | 1, mcr);     /* data_out = d; clock = 1; */
   *r1 = !(inb(msr) & 0x10);  /* *r1 = data_in;           */
-#else
-  digitalWrite(PIN_WRITTEN,!d);  // pins use negative logic
-  digitalWrite(PIN_CLOCK,!0);
-  delayMicroseconds(delay);
-  int data_in = digitalRead(PIN_READ);
-  *r0 = !!(data_in);
-  digitalWrite(PIN_CLOCK,!1);
-  delayMicroseconds(delay);
-  data_in = digitalRead(PIN_READ);
-  *r1 = !!(data_in);
 #endif
 }     // FIN void SendBitPlatform(char d, short *r0, short *r1, short delay)
 // *************************************************************************
@@ -89,13 +125,13 @@ void SendBitPlatform(char d, short *r0, short *r1, short delay)
 /* Send final 0 and delay. */
 void SendFinalPlatform(short delay)
 {
-#ifndef RASPBERRY
+#ifdef RASPBERRY_PI
+	gpiod_line_set_value(line_clock, 0);
+	gpiod_line_set_value(line_data_out, 0);
+	delay_us(delay - 1);
+#else
 	while (delay--)
 		outb(0, mcr);
-#else
-  digitalWrite(PIN_CLOCK,!0);
-  digitalWrite(PIN_WRITTEN,!0);
-  delayMicroseconds(delay);
 #endif
 }     // FIN void SendFinalPlatform(short delay)
 // *************************************************************************
@@ -210,6 +246,9 @@ void StopTimerPlatform(void)
 void terminate(void)
 {
 	StopTRMC();
+#ifdef RASPBERRY_PI
+	gpiod_chip_close(gpio_chip);
+#endif
 }
 
 /* Handler for deadly signals. */
@@ -228,8 +267,25 @@ int InitPlatform(void *ptr)
 #endif
 	struct sigaction action;
 
+#ifdef RASPBERRY_PI
+	gpio_chip = gpiod_chip_open_by_name(GPIO_CHIP_NAME);
+	if (!gpio_chip)
+		return _CANNOT_FIND_GPIO_CHIP;
+	line_clock = gpiod_chip_get_line(gpio_chip, PIN_CLOCK);
+	line_data_in  = gpiod_chip_get_line(gpio_chip, PIN_DATA_IN);
+	line_data_out = gpiod_chip_get_line(gpio_chip, PIN_DATA_OUT);
+	if (!(line_clock && line_data_in && line_data_out))
+		return _CANNOT_FIND_GPIO_LINE;
+	if (gpiod_line_request_output_flags(line_clock, CONSUMER,
+			GPIOD_LINE_REQUEST_FLAG_ACTIVE_LOW, 0) == -1)
+		return _CANNOT_RESERVE_GPIO_LINE;
+	if (gpiod_line_request_input(line_data_in, CONSUMER) == -1)
+		return _CANNOT_RESERVE_GPIO_LINE;
+	if (gpiod_line_request_output_flags(line_data_out, CONSUMER,
+			GPIOD_LINE_REQUEST_FLAG_ACTIVE_LOW, 0) == -1)
+		return _CANNOT_RESERVE_GPIO_LINE;
+#else
 	/* Get write permission on the I/O space of the serial port. */
-#ifndef RASPBERRY
 	unsigned long base;
 	switch (vartrmc->com1) {
 		case _COM1: base = BASE_COM1; break;
@@ -240,12 +296,6 @@ int InitPlatform(void *ptr)
 		return _COM_NOT_AVAILABLE;
 	mcr = base + MCR_OFFSET;
 	msr = base + MSR_OFFSET;
-#else
-	if (wiringPiSetup() == -1)
-	  return _CANT_SETUP_WIRINGPI;
-	pinMode(PIN_CLOCK,OUTPUT);
-	pinMode(PIN_READ,INPUT);
-	pinMode(PIN_WRITTEN,OUTPUT);
 #endif
 	/* Initialize globals. */
 	trmc_globals = vartrmc;
