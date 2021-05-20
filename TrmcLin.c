@@ -58,8 +58,8 @@
  */
 
 #ifdef RASPBERRY_PI
-struct gpiod_chip *gpio_chip;
-struct gpiod_line *line_clock, *line_data_in, *line_data_out;
+static struct gpiod_chip *gpio_chip;
+static struct gpiod_line *line_clock, *line_data_in, *line_data_out;
 #else
 /* Addresses of the MCR and MSR registers of the serial port. */
 static unsigned short mcr, msr;
@@ -243,7 +243,7 @@ void StopTimerPlatform(void)
  */
 
 /* Called via atexit() upon termination. */
-void terminate(void)
+static void terminate(void)
 {
 	StopTRMC();
 #ifdef RASPBERRY_PI
@@ -252,7 +252,7 @@ void terminate(void)
 }
 
 /* Handler for deadly signals. */
-void quit_callback(int signum)
+static void quit_callback(int signum)
 {
 	(void) signum;
 	exit(EXIT_FAILURE);  /* exit() calls terminate() */
