@@ -31,9 +31,9 @@ Then:
 This last command installs two files and two symbolic links:
 
     $(INCLUDEDIR)/Trmc.h
-    $(LIBDIR)/libtrmc2.so -> libtrmc2.so.1
-    $(LIBDIR)/libtrmc2.so.1 -> libtrmc2.so.1.1
-    $(LIBDIR)/libtrmc2.so.1.1
+    $(LIBDIR)/libtrmc2.so -> libtrmc2.so.2
+    $(LIBDIR)/libtrmc2.so.2 -> libtrmc2.so.2.1
+    $(LIBDIR)/libtrmc2.so.2.1
 
 ## Building your own programs based on libtrmc2
 
