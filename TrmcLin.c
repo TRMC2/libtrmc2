@@ -267,6 +267,14 @@ int InitPlatform(void *ptr)
 #endif
 	struct sigaction action;
 
+	/*
+	 * Make this function idempotent: StartTRMC() may call us again if,
+	 * the previous time it was called, it failed to establish
+	 * communication with the TRMC2.
+	 */
+	if (platform_initialized)
+		return _RETURN_OK;
+
 #ifdef RASPBERRY_PI
 	gpio_chip = gpiod_chip_open_by_name(GPIO_CHIP_NAME);
 	if (!gpio_chip)
