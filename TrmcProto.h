@@ -6,6 +6,7 @@
 //************************************************************* 
 int	WriteFifoMeasure(ACHANNEL *,int );
 int	ReadFifoMeasure(ACHANNEL *,AMEASURE *);
+void FlushFifo(ACHANNEL *);
 int  createachannel(CHANNELPARAMETER *);
 int locatechannel(int ,CHANNELPARAMETER *);
 void newname(char name[_LENGTHOFNAME]);

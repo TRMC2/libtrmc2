@@ -281,6 +281,12 @@ _EXTERN int _DLLSTATUS ReadValueTRMC(int index, AMEASURE *measure);
 // Fill the structure pointed to by measure by the
 // measured values for channel indexed by index in the table.
 
+// *******************************************************
+//			DISCARDING UNWANTED MEASUREMENTS (1 FUNCTION)
+// *******************************************************
+_EXTERN int _DLLSTATUS FlushFifoTRMC(int index);
+// Flush the measurement FIFO of the channel indexed by index in the table.
+
 // return the number of values in the fifo BEFORE the read (Le 7-1-2004) 
 // ******************************************************* 
 //					ERROR CODES 

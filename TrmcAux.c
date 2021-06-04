@@ -996,6 +996,13 @@ int	ReadFifoMeasure(ACHANNEL *Channel,AMEASURE *measure)
 }				// FIN ReadFifoMeasure()
 // ************************************************************* 
 
+void FlushFifo(ACHANNEL *Channel)
+// ASYNCHRONEOUS call. Empty the channel's FIFO, discarding its contents.
+{
+	FIFO * fifopt = Channel->fifopt;
+	fifopt->iRead = fifopt->iWrite;
+}
+
  double	MeasuredValue(ABOARD *Board)
 /*
 Return a double r whose absolute value acnnot exceed 1 by a large amount:

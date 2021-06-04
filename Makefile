@@ -19,7 +19,7 @@ OS_ID := $(shell grep '^ID=' /etc/os-release | sed 's/ID=//')
 # Library name and version numbers
 NAME  = libtrmc2
 MAJOR = 2
-MINOR = 1
+MINOR = 2
 
 # Command options
 CC       = gcc

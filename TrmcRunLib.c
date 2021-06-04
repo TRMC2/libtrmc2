@@ -797,6 +797,22 @@ int _DLLSTATUS ReadValueTRMC(int index,AMEASURE *measure)
 }           // FIN ReadValueTRMC()
 // ************************************************************
 
+int _DLLSTATUS FlushFifoTRMC(int index)
+// Flush the measurement FIFO of the channel indexed by index in the table.
+{
+	ACHANNEL *channel;
 
+	if (vartrmc == 0)
+		return _TRMC_NOT_INITIALIZED;
 
+	if ((index<0)||(index>=vartrmc->NbofChannel))
+		return _NO_SUCH_CHANNEL;
 
+	channel = &vartrmc->Channels[index];
+	if (channel->parameter.Mode == _NOT_USED_MODE)
+		return _CHANNEL_NOT_IN_USE;
+
+	FlushFifo(channel);
+	return _RETURN_OK;
+}           // FIN FlushFifoTRMC()
+// ************************************************************
