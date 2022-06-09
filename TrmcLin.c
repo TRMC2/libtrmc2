@@ -27,7 +27,9 @@
 #include <sched.h>
 #include <signal.h>
 #include <sys/time.h>
-#include <sys/io.h>
+#ifndef RASPBERRY_PI
+# include <sys/io.h>
+#endif
 #include <sys/mman.h>
 #include "Trmc.h"			/* for error codes */
 #include "TrmcDef.h"		/* definition of the VARTRMC type */
