@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
 /* vim: set ts=4 sw=4 noet:
  *
  * TrmcLin.c: Platform dependent functions, Linux version.

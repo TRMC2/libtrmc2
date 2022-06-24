@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
 // version adaptee a sauvegarde cvs TrmcRunLib.h
 //-------------------------------------------------------- 
 //                   SOME DEFINES  

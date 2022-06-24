@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: LGPL-3.0-or-later
+#
 # Makefile for libtrmc2 on Linux. Use gnu make.
 
 

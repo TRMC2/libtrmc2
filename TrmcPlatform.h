@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
 // Prototypes of funcions shared by TrmcRunLib and
 // TrmcWin or TrmcMac or TrmcLinux
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
 #define  _ABS(u)	((u)>=0?(u):-(u))
 
 #define _CMD_DACA						0 // VRAI

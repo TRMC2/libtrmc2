@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
 // --------------------   BOARD TYPE REGUL    ---------------------
 #define _NB_SUBADD_REGUL 1
 

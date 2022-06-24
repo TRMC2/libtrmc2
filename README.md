@@ -5,9 +5,6 @@ regulator][TRMC2] from Linux. It can work either on a 32 or 64-bit PC
 having a built-in serial port, or on a [Raspberry Pi][] running
 [Raspberry Pi OS][].
 
-The library was written by Jean-Christian Anglès d’Auriac, initially for
-Windows. Edgar Bonet contributed the Linux port (the file TrmcLin.c).
-
 ## Building and installing libtrmc2
 
 You first have to make sure you have a build toolchain installed. The
@@ -72,6 +69,24 @@ to the hardware:
   priority, which helps get good communication timings. This feature can
   be disabled by compiling the library with the option
   `-DNORMAL_SCHEDULE`.
+
+## Copyright
+
+Copyright (C) 2022 CNRS, Institut NEEL Grenoble.
+
+This library was written by Jean-Christian Anglès d’Auriac, initially
+for Windows. Edgar Bonet contributed the Linux port (the file
+TrmcLin.c).
+
+This program is free software: you can redistribute it and/or modify it
+under the terms of the GNU Lesser General Public License as published by
+the Free Software Foundation, either version 3 of the License, or (at
+your option) any later version.
+
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
+General Public License for more details.
 
 [TRMC2]: http://neel-2007-2019.neel.cnrs.fr/spip.php?article862
 [Raspberry Pi]: https://www.raspberrypi.org/products/
