@@ -146,7 +146,9 @@ void SendFinalPlatform(short delay)
 static int platform_initialized;
 static struct itimerval interval;
 static sigset_t sigset_alrm;
-static enum { WAIT_FIRST, WAIT_SECOND } timer_state = WAIT_FIRST;
+static enum {
+	TIMER_START, WAIT_FIRST, WAIT_SECOND
+} timer_state = TIMER_START;
 static int timer_period;
 static int timer_on;
 static VARTRMC *trmc_globals;
@@ -166,6 +168,16 @@ int ElapsedTimePlatform(void)
 		 + (now.tv_usec - first.tv_usec) / 1000;
 }
 
+/* Add some microseconds to a struct timeval. */
+static void add_delay(struct timeval *ptv, int delay_us)
+{
+	ptv->tv_usec += delay_us;
+	while (ptv->tv_usec >= 1000000) {
+		ptv->tv_usec -= 1000000;
+		ptv->tv_sec += 1;
+	}
+}
+
 /*
  * This function is called as a handler of SIGALRM when a timer expires.
  * It calls alternatively SynchroCall1() and SynchroCall2() and restarts
@@ -178,38 +190,61 @@ int ElapsedTimePlatform(void)
  */
 static void timer_callback(int signum)
 {
-	static struct timeval last = {0, 0};	/* call to SynchroCall1() */
+	static struct timeval scheduled_time = {
+		0, 0
+	};	/* time of scheduled call to SynchroCall1() */
 	struct timeval now;
 	int delay;
 
 	(void) signum;	/* unused */
 
-	if (timer_state == WAIT_FIRST) {
-		if (!timer_on) return;
-		gettimeofday(&last, NULL);
-		if(SynchroCall1(trmc_globals) == 0) {
+	switch (timer_state) {
+
+		/* Very first call after BeatPlatform(). */
+		case TIMER_START:
+			/* Pretend we were scheduled to run now. */
+			gettimeofday(&scheduled_time, NULL);
+			timer_state = WAIT_FIRST;
+			/* fallthrough */
+
+		/* Time to call SynchroCall1(). */
+		case WAIT_FIRST:
+			if (!timer_on) return;
+			if (SynchroCall1(trmc_globals) != 0) return;
 
 			/* Schedule call to SynchroCall2(). */
 			interval.it_value.tv_usec = 4000;
 			setitimer(ITIMER_REAL, &interval, NULL);
 			timer_state = WAIT_SECOND;
-			return;
+			break;
 
-		}
-	} else {
-		SynchroCall2(trmc_globals);
+		/* Time to call SynchroCall2(). */
+		case WAIT_SECOND:
+			SynchroCall2(trmc_globals);
+			if (!timer_on) return;
+
+			/* How long before next call to SynchroCall1()? */
+			add_delay(&scheduled_time, timer_period);
+			gettimeofday(&now, NULL);
+			delay = 1000000 * (scheduled_time.tv_sec - now.tv_sec)
+					+ (scheduled_time.tv_usec - now.tv_usec);
+
+			/*
+			 * If we got out of sync (maybe the clock was stepped by the
+			 * user), reset the scheduled time.
+			 */
+			if (delay < 1000 || delay >= timer_period) {
+				delay = timer_period - 4000;
+				scheduled_time = now;
+				add_delay(&scheduled_time, delay);
+			}
+
+			/* Schedule call to SynchroCall1(). */
+			interval.it_value.tv_usec = delay;
+			setitimer(ITIMER_REAL, &interval, NULL);
+			timer_state = WAIT_FIRST;
+			break;
 	}
-
-	/* Schedule call to SynchroCall1(). */
-	if (!timer_on) return;
-	gettimeofday(&now, NULL);
-	delay = timer_period
-		- 1000000 * (now.tv_sec - last.tv_sec)
-		- (now.tv_usec - last.tv_usec);
-	if (delay < 1000) delay = 1000;
-	interval.it_value.tv_usec = delay;
-	setitimer(ITIMER_REAL, &interval, NULL);
-	timer_state = WAIT_FIRST;
 }
 
 /*
@@ -222,7 +257,7 @@ int BeatPlatform(void)
 		return _TIMER_NOT_CAPABLE;
 	interval.it_value.tv_usec = 1000;
 	timer_on = 1;
-	timer_state = WAIT_FIRST;
+	timer_state = TIMER_START;
 	setitimer(ITIMER_REAL, &interval, NULL);
 	return	_RETURN_OK;
 }
@@ -235,7 +270,7 @@ void StopTimerPlatform(void)
 
 	/* Block SIGALRM to avoid race condition. */
 	sigprocmask(SIG_BLOCK, &sigset_alrm, NULL);
-	if (timer_state == WAIT_FIRST)
+	if (timer_state == TIMER_START || timer_state == WAIT_FIRST)
 		setitimer(ITIMER_REAL, &interval, NULL);
 	sigprocmask(SIG_UNBLOCK, &sigset_alrm, NULL);
 }
