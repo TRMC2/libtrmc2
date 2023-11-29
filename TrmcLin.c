@@ -92,6 +92,45 @@ static void delay_us(short delay)
 #endif
 
 /*
+ * Request access to the GPIO lines, or to the serial port if that is
+ * what we are using. Return either _RETURN_OK or an error code.
+ */
+static int init_gpios(void)
+{
+#if ! USE_SERIAL_PORT
+	gpio_chip = gpiod_chip_open_by_name(GPIO_CHIP_NAME);
+	if (!gpio_chip)
+		return _CANNOT_FIND_GPIO_CHIP;
+	line_clock = gpiod_chip_get_line(gpio_chip, PIN_CLOCK);
+	line_data_in  = gpiod_chip_get_line(gpio_chip, PIN_DATA_IN);
+	line_data_out = gpiod_chip_get_line(gpio_chip, PIN_DATA_OUT);
+	if (!(line_clock && line_data_in && line_data_out))
+		return _CANNOT_FIND_GPIO_LINE;
+	if (gpiod_line_request_output_flags(line_clock, CONSUMER,
+			GPIOD_LINE_REQUEST_FLAG_ACTIVE_LOW, 0) == -1)
+		return _CANNOT_RESERVE_GPIO_LINE;
+	if (gpiod_line_request_input(line_data_in, CONSUMER) == -1)
+		return _CANNOT_RESERVE_GPIO_LINE;
+	if (gpiod_line_request_output_flags(line_data_out, CONSUMER,
+			GPIOD_LINE_REQUEST_FLAG_ACTIVE_LOW, 0) == -1)
+		return _CANNOT_RESERVE_GPIO_LINE;
+#else
+	/* Get write permission on the I/O space of the serial port. */
+	unsigned long base;
+	switch (vartrmc->com1) {
+		case _COM1: base = BASE_COM1; break;
+		case _COM2: base = BASE_COM2; break;
+		default: return _INVALID_COM;
+	}
+	if (ioperm(base, COM_LENGTH, 1) == -1)
+		return _COM_NOT_AVAILABLE;
+	mcr = base + MCR_OFFSET;
+	msr = base + MSR_OFFSET;
+#endif
+	return _RETURN_OK;
+}
+
+/*
  * This function sends the bit d through the data_out line and sets the
  * clock line to 0 then 1. It gets TWO responses, r0 and r1, on the
  * data_in line: one for each state of the clock. r0 is the data. r1 is
@@ -313,36 +352,10 @@ int InitPlatform(void *ptr)
 	if (platform_initialized)
 		return _RETURN_OK;
 
-#if ! USE_SERIAL_PORT
-	gpio_chip = gpiod_chip_open_by_name(GPIO_CHIP_NAME);
-	if (!gpio_chip)
-		return _CANNOT_FIND_GPIO_CHIP;
-	line_clock = gpiod_chip_get_line(gpio_chip, PIN_CLOCK);
-	line_data_in  = gpiod_chip_get_line(gpio_chip, PIN_DATA_IN);
-	line_data_out = gpiod_chip_get_line(gpio_chip, PIN_DATA_OUT);
-	if (!(line_clock && line_data_in && line_data_out))
-		return _CANNOT_FIND_GPIO_LINE;
-	if (gpiod_line_request_output_flags(line_clock, CONSUMER,
-			GPIOD_LINE_REQUEST_FLAG_ACTIVE_LOW, 0) == -1)
-		return _CANNOT_RESERVE_GPIO_LINE;
-	if (gpiod_line_request_input(line_data_in, CONSUMER) == -1)
-		return _CANNOT_RESERVE_GPIO_LINE;
-	if (gpiod_line_request_output_flags(line_data_out, CONSUMER,
-			GPIOD_LINE_REQUEST_FLAG_ACTIVE_LOW, 0) == -1)
-		return _CANNOT_RESERVE_GPIO_LINE;
-#else
-	/* Get write permission on the I/O space of the serial port. */
-	unsigned long base;
-	switch (vartrmc->com1) {
-		case _COM1: base = BASE_COM1; break;
-		case _COM2: base = BASE_COM2; break;
-		default: return _INVALID_COM;
-	}
-	if (ioperm(base, COM_LENGTH, 1) == -1)
-		return _COM_NOT_AVAILABLE;
-	mcr = base + MCR_OFFSET;
-	msr = base + MSR_OFFSET;
-#endif
+	int gpio_error = init_gpios();
+	if (gpio_error != _RETURN_OK)
+		return gpio_error;
+
 	/* Initialize globals. */
 	trmc_globals = vartrmc;
 	timer_period = 1000 * vartrmc->periodinms;
