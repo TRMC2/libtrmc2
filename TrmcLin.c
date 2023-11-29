@@ -40,13 +40,27 @@
 #include "TrmcRunLib.h"		/* for SynchroCall[12]() */
 #include "TrmcPlatform.h"	/* functions exported by this file */
 
-#if ! USE_SERIAL_PORT
-# define GPIO_CHIP_NAME	"gpiochip0"
+/*
+ * libgpiod does not provide a dedicated macro for telling the API
+ * version. Use a macro that is only defined in one API version.
+ */
+#if USE_SERIAL_PORT
+# undef USE_GPIOD_API  /* just in case */
+#else
+# ifdef GPIOD_LINE_BULK_MAX_LINES
+#  define USE_GPIOD_API 1
+# else
+#  define USE_GPIOD_API 2
+# endif
+#endif
+
+#if USE_GPIOD_API
+# define GPIO_CHIP_PATH	"/dev/gpiochip0"
 # define CONSUMER		"libtrmc2"
 # define PIN_CLOCK		17  /* GPIO17, pin 11 */
 # define PIN_DATA_IN	18  /* GPIO18, pin 12 */
 # define PIN_DATA_OUT	27  /* GPIO27, pin 13 */
-#else
+#else  // USE_SERIAL_PORT
 /* I/O space of the serial ports. */
 # define BASE_COM1	0x3f8
 # define BASE_COM2	0x2f8
@@ -55,19 +69,27 @@
 # define MSR_OFFSET	0x6
 #endif
 
+
 /***********************************************************************
  * Bit-level communication with the TRMC2.
  */
 
-#if ! USE_SERIAL_PORT
+#if USE_GPIOD_API
 static struct gpiod_chip *gpio_chip;
+# if USE_GPIOD_API == 2
+static struct gpiod_line_request *gpio_request;
+static const unsigned int line_clock = PIN_CLOCK;
+static const unsigned int line_data_in = PIN_DATA_IN;
+static const unsigned int line_data_out = PIN_DATA_OUT;
+# else  // USE_GPIOD_API == 1
 static struct gpiod_line *line_clock, *line_data_in, *line_data_out;
-#else
+# endif
+#else  // USE_SERIAL_PORT
 /* Addresses of the MCR and MSR registers of the serial port. */
 static unsigned short mcr, msr;
 #endif
 
-#if ! USE_SERIAL_PORT
+#if USE_GPIOD_API
 /*
  * Delay for the requested number of microseconds.
  *
@@ -92,15 +114,70 @@ static void delay_us(short delay)
 #endif
 
 /*
+ * Wrappers around libgpiod I/O functions. These allow having common
+ * code for versions 1 and 2 of the libgpiod API.
+ */
+#if USE_GPIOD_API == 2
+
+static int line_get_value(unsigned int line)
+{
+	enum gpiod_line_value line_value =
+		gpiod_line_request_get_value(gpio_request, line);
+	return line_value == GPIOD_LINE_VALUE_ACTIVE;
+}
+
+static void line_set_value(unsigned int line, int value)
+{
+	enum gpiod_line_value line_value =
+		value ? GPIOD_LINE_VALUE_ACTIVE : GPIOD_LINE_VALUE_INACTIVE;
+	gpiod_line_request_set_value(gpio_request, line, line_value);
+}
+
+#elif USE_GPIOD_API == 1
+
+static int line_get_value(struct gpiod_line *line)
+{
+	return gpiod_line_get_value(line) != 0;
+}
+
+static void line_set_value(struct gpiod_line *line, int value)
+{
+	gpiod_line_set_value(line, value);
+}
+
+#endif
+
+/*
  * Request access to the GPIO lines, or to the serial port if that is
  * what we are using. Return either _RETURN_OK or an error code.
  */
 static int init_gpios(void)
 {
-#if ! USE_SERIAL_PORT
-	gpio_chip = gpiod_chip_open_by_name(GPIO_CHIP_NAME);
+#if USE_GPIOD_API
+	gpio_chip = gpiod_chip_open(GPIO_CHIP_PATH);
 	if (!gpio_chip)
 		return _CANNOT_FIND_GPIO_CHIP;
+# if USE_GPIOD_API == 2
+	struct gpiod_line_config *line_cfg = gpiod_line_config_new();
+	struct gpiod_line_settings *settings = gpiod_line_settings_new();
+	gpiod_line_settings_set_direction(settings, GPIOD_LINE_DIRECTION_INPUT);
+	unsigned int pin = PIN_DATA_IN;
+	gpiod_line_config_add_line_settings(line_cfg, &pin, 1, settings);
+	gpiod_line_settings_set_direction(settings, GPIOD_LINE_DIRECTION_OUTPUT);
+	gpiod_line_settings_set_active_low(settings, true);
+	pin = PIN_CLOCK;
+	gpiod_line_config_add_line_settings(line_cfg, &pin, 1, settings);
+	pin = PIN_DATA_OUT;
+	gpiod_line_config_add_line_settings(line_cfg, &pin, 1, settings);
+	gpiod_line_settings_free(settings);
+	struct gpiod_request_config *req_cfg = gpiod_request_config_new();
+	gpiod_request_config_set_consumer(req_cfg, CONSUMER);
+	gpio_request = gpiod_chip_request_lines(gpio_chip, req_cfg, line_cfg);
+	gpiod_request_config_free(req_cfg);
+	gpiod_line_config_free(line_cfg);
+	if (!gpio_request)
+		return _CANNOT_RESERVE_GPIO_LINE;
+# else  // USE_GPIOD_API == 1
 	line_clock = gpiod_chip_get_line(gpio_chip, PIN_CLOCK);
 	line_data_in  = gpiod_chip_get_line(gpio_chip, PIN_DATA_IN);
 	line_data_out = gpiod_chip_get_line(gpio_chip, PIN_DATA_OUT);
@@ -114,7 +191,8 @@ static int init_gpios(void)
 	if (gpiod_line_request_output_flags(line_data_out, CONSUMER,
 			GPIOD_LINE_REQUEST_FLAG_ACTIVE_LOW, 0) == -1)
 		return _CANNOT_RESERVE_GPIO_LINE;
-#else
+# endif
+#else  // USE_SERIAL_PORT
 	/* Get write permission on the I/O space of the serial port. */
 	unsigned long base;
 	switch (vartrmc->com1) {
@@ -139,15 +217,15 @@ static int init_gpios(void)
 void SendBitPlatform(char d, short *r0, short *r1, short delay)
 {
 	d = (d != 0);		/* d should be 0 or 1 */
-#if ! USE_SERIAL_PORT
-	gpiod_line_set_value(line_data_out, d);
-	gpiod_line_set_value(line_clock, 0);
+#if USE_GPIOD_API
+	line_set_value(line_data_out, d);
+	line_set_value(line_clock, 0);
 	delay_us(delay - 1);
-	*r0 = !!gpiod_line_get_value(line_data_in);
-	gpiod_line_set_value(line_clock, 1);
+	*r0 = line_get_value(line_data_in);
+	line_set_value(line_clock, 1);
 	delay_us(delay - 1);
-	*r1 = !!gpiod_line_get_value(line_data_in);
-#else
+	*r1 = line_get_value(line_data_in);
+#else  // USE_SERIAL_PORT
 	/*
 	 * The serial port I/O registers and relevant lines are:
 	 *		MCR: bit 0 = DTR = clock, bit 1 = RTS = data_out
@@ -161,22 +239,21 @@ void SendBitPlatform(char d, short *r0, short *r1, short delay)
 		outb(d<<1 | 1, mcr);     /* data_out = d; clock = 1; */
 	*r1 = !(inb(msr) & 0x10);  /* *r1 = data_in;           */
 #endif
-}     // FIN void SendBitPlatform(char d, short *r0, short *r1, short delay)
-// *************************************************************************
+}
 
 /* Send final 0 and delay. */
 void SendFinalPlatform(short delay)
 {
-#if ! USE_SERIAL_PORT
-	gpiod_line_set_value(line_clock, 0);
-	gpiod_line_set_value(line_data_out, 0);
+#if USE_GPIOD_API
+	line_set_value(line_clock, 0);
+	line_set_value(line_data_out, 0);
 	delay_us(delay - 1);
-#else
+#else  // USE_SERIAL_PORT
 	while (delay--)
 		outb(0, mcr);
 #endif
-}     // FIN void SendFinalPlatform(short delay)
-// *************************************************************************
+}
+
 
 /***********************************************************************
  * Time management.
@@ -323,7 +400,10 @@ void StopTimerPlatform(void)
 static void terminate(void)
 {
 	StopTRMC();
-#if ! USE_SERIAL_PORT
+#if USE_GPIOD_API
+# if USE_GPIOD_API == 2
+	gpiod_line_request_release(gpio_request);
+# endif
 	gpiod_chip_close(gpio_chip);
 #endif
 }
