@@ -1,20 +1,18 @@
 # libtrmc2 – Library for controlling the TRMC2 temperature regulator
 
 This library is intended for controlling the [TRMC2 temperature
-regulator][TRMC2] from Linux. It can work either on a 32 or 64-bit PC
-having a built-in serial port, or on a [Raspberry Pi][] running
-[Raspberry Pi OS][].
+regulator][TRMC2] from Linux. It is mainly tested on a [Raspbery Pi][],
+but can work on any system running Linux 4.8 or newer and having three
+spare GPIO pins. Alternatively, if running on a PC computer with a
+built-in serial port, it can use the control lines of that port instead
+of GPIO pins.
 
 ## Building and installing libtrmc2
 
 You first have to make sure you have a build toolchain installed. The
 simplest way is by issuing the command:
 
-    sudo apt install build-essential
-
-On the Raspberry Pi, you will also need the libgpiod library:
-
-    sudo apt install libgpiod-dev
+    sudo apt install build-essential libgpiod-dev
 
 The provided Makefile defaults to installing the shared library in
 /usr/local/lib and the header file in /usr/local/include. If you prefer
@@ -25,7 +23,13 @@ Then:
     make
     sudo make install
 
-This last command installs two files and two symbolic links:
+If using a PC serial port, you do not need to install `libgpiod-dev`,
+but you have to replace the `make` command with
+
+    make USE_SERIAL_PORT=yes
+
+The `sudo make install` command installs two files and two symbolic
+links:
 
     $(INCLUDEDIR)/Trmc.h
     $(LIBDIR)/libtrmc2.so -> libtrmc2.so.2
@@ -90,4 +94,3 @@ General Public License for more details.
 
 [TRMC2]: http://neel-2007-2019.neel.cnrs.fr/spip.php?article862
 [Raspberry Pi]: https://www.raspberrypi.org/products/
-[Raspberry Pi OS]: https://www.raspberrypi.org/downloads/raspberry-pi-os/

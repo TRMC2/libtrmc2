@@ -1,6 +1,17 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
-# Makefile for libtrmc2 on Linux. Use gnu make.
+# Makefile for libtrmc2 on Linux. Requires GNU make.
+#
+# If this library is going to communicate with the TRMC2 using GPIO
+# pins, make sure libgpiod and its header are installed, then simply
+# type
+#
+#     make
+#
+# If using the old connection method through a serial port's control
+# lines, type
+#
+#     make USE_SERIAL_PORT=yes
 
 
 ########################################################################
@@ -15,9 +26,6 @@ CFLAGS=-O -Wall -Wextra
 ########################################################################
 # Nothing should have to be configured below this point
 
-# OS detection
-OS_ID := $(shell grep '^ID=' /etc/os-release | sed 's/ID=//')
-
 # Library name and version numbers
 NAME  = libtrmc2
 MAJOR = 2
@@ -29,10 +37,11 @@ CFLAGS  += -fPIC
 CPPFLAGS =
 LDLIBS   =
 
-# Use libgpiod on Raspbian. Otherwise assume this is a PC and use the
-# control lines of one of the first two serial ports.
-ifeq ($(OS_ID), raspbian)
-    TrmcLin.o: CPPFLAGS += -DRASPBERRY_PI
+# How to communicate with the TRMC2: If using the serial port, inform
+# TrmcLin.c. Otherwise link with libgpiod.
+ifdef USE_SERIAL_PORT
+    TrmcLin.o: CPPFLAGS += -DUSE_SERIAL_PORT=1
+else
     LDLIBS += -lgpiod
 endif
 

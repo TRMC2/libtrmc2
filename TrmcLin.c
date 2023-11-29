@@ -3,17 +3,17 @@
  *
  * TrmcLin.c: Platform dependent functions, Linux version.
  *
- * If compiled with -DRASPBERRY_PI, the GPIO connector of the Raspberry
- * Pi will be used for communicating with the TRMC2:
- *   - clock:    GPIO17 (pin 11 of the GPIO connector)
+ * If compiled _without_ the option -DUSE_SERIAL_PORT, the communication
+ * with the TRMC2 with be handled through GPIO lines of gpiochip0:
+ *   - clock:    GPIO17 (pin 11 of the Raspberry Pi GPIO connector)
  *   - data_in:  GPIO18 (pin 12)
  *   - data_out: GPIO27 (pin 13)
  * The library then has to be linked against libgpiod (compiler option
  * -lgpiod).
  *
- * If the option -DRASPBERRY_PI is _not_ provided, we assume this is a
- * PC with standard serial ports, and we use the control lines of either
- * of the first two ports (COM1/ttyS0, COM2/ttyS1) as follows:
+ * If the option -DUSE_SERIAL_PORT is given, we assume this is a PC with
+ * standard serial ports, and we use the control lines of either of the
+ * first two ports (COM1/ttyS0, COM2/ttyS1) as follows:
  *   - clock:    DTR (pin 4 of the DE-9 connector)
  *   - data_in:  CTS (pin 8)
  *   - data_out: RTS (pin 7)
@@ -28,20 +28,19 @@
 #include <sched.h>
 #include <signal.h>
 #include <sys/time.h>
-#ifndef RASPBERRY_PI
-# include <sys/io.h>
-#endif
 #include <sys/mman.h>
+#if USE_SERIAL_PORT
+# include <sys/io.h>
+#else
+# include <time.h>
+# include <gpiod.h>
+#endif
 #include "Trmc.h"			/* for error codes */
 #include "TrmcDef.h"		/* definition of the VARTRMC type */
 #include "TrmcRunLib.h"		/* for SynchroCall[12]() */
 #include "TrmcPlatform.h"	/* functions exported by this file */
-#ifdef RASPBERRY_PI
-# include <time.h>
-# include <gpiod.h>
-#endif
 
-#ifdef RASPBERRY_PI
+#if ! USE_SERIAL_PORT
 # define GPIO_CHIP_NAME	"gpiochip0"
 # define CONSUMER		"libtrmc2"
 # define PIN_CLOCK		17  /* GPIO17, pin 11 */
@@ -57,10 +56,10 @@
 #endif
 
 /***********************************************************************
- * Communication through the serial port.
+ * Bit-level communication with the TRMC2.
  */
 
-#ifdef RASPBERRY_PI
+#if ! USE_SERIAL_PORT
 static struct gpiod_chip *gpio_chip;
 static struct gpiod_line *line_clock, *line_data_in, *line_data_out;
 #else
@@ -68,7 +67,7 @@ static struct gpiod_line *line_clock, *line_data_in, *line_data_out;
 static unsigned short mcr, msr;
 #endif
 
-#ifdef RASPBERRY_PI
+#if ! USE_SERIAL_PORT
 /*
  * Delay for the requested number of microseconds.
  *
@@ -97,15 +96,11 @@ static void delay_us(short delay)
  * clock line to 0 then 1. It gets TWO responses, r0 and r1, on the
  * data_in line: one for each state of the clock. r0 is the data. r1 is
  * for error control: it should be the converse of the previous data.
- * 
- * The I/O registers and relevant lines are:
- *		MCR: bit 0 = DTR = clock, bit 1 = RTS = data_out
- *		MSR: bit 4 = CTS = !data_in
  */
 void SendBitPlatform(char d, short *r0, short *r1, short delay)
 {
 	d = (d != 0);		/* d should be 0 or 1 */
-#ifdef RASPBERRY_PI
+#if ! USE_SERIAL_PORT
 	gpiod_line_set_value(line_data_out, d);
 	gpiod_line_set_value(line_clock, 0);
 	delay_us(delay - 1);
@@ -114,6 +109,11 @@ void SendBitPlatform(char d, short *r0, short *r1, short delay)
 	delay_us(delay - 1);
 	*r1 = !!gpiod_line_get_value(line_data_in);
 #else
+	/*
+	 * The serial port I/O registers and relevant lines are:
+	 *		MCR: bit 0 = DTR = clock, bit 1 = RTS = data_out
+	 *		MSR: bit 4 = CTS = !data_in
+	 */
 	int i;
 	for(i=0; i<delay; i++)
 		outb(d<<1 | 0, mcr);     /* data_out = d; clock = 0; */
@@ -128,7 +128,7 @@ void SendBitPlatform(char d, short *r0, short *r1, short delay)
 /* Send final 0 and delay. */
 void SendFinalPlatform(short delay)
 {
-#ifdef RASPBERRY_PI
+#if ! USE_SERIAL_PORT
 	gpiod_line_set_value(line_clock, 0);
 	gpiod_line_set_value(line_data_out, 0);
 	delay_us(delay - 1);
@@ -284,7 +284,7 @@ void StopTimerPlatform(void)
 static void terminate(void)
 {
 	StopTRMC();
-#ifdef RASPBERRY_PI
+#if ! USE_SERIAL_PORT
 	gpiod_chip_close(gpio_chip);
 #endif
 }
@@ -313,7 +313,7 @@ int InitPlatform(void *ptr)
 	if (platform_initialized)
 		return _RETURN_OK;
 
-#ifdef RASPBERRY_PI
+#if ! USE_SERIAL_PORT
 	gpio_chip = gpiod_chip_open_by_name(GPIO_CHIP_NAME);
 	if (!gpio_chip)
 		return _CANNOT_FIND_GPIO_CHIP;
