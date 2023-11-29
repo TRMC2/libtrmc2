@@ -104,23 +104,23 @@ static void delay_us(short delay)
  */
 void SendBitPlatform(char d, short *r0, short *r1, short delay)
 {
-  d = (d != 0);		/* d should be 0 or 1 */
+	d = (d != 0);		/* d should be 0 or 1 */
 #ifdef RASPBERRY_PI
-  gpiod_line_set_value(line_data_out, d);
-  gpiod_line_set_value(line_clock, 0);
-  delay_us(delay - 1);
-  *r0 = !!gpiod_line_get_value(line_data_in);
-  gpiod_line_set_value(line_clock, 1);
-  delay_us(delay - 1);
-  *r1 = !!gpiod_line_get_value(line_data_in);
+	gpiod_line_set_value(line_data_out, d);
+	gpiod_line_set_value(line_clock, 0);
+	delay_us(delay - 1);
+	*r0 = !!gpiod_line_get_value(line_data_in);
+	gpiod_line_set_value(line_clock, 1);
+	delay_us(delay - 1);
+	*r1 = !!gpiod_line_get_value(line_data_in);
 #else
-  int i;
-  for(i=0; i<delay; i++)
-    outb(d<<1 | 0, mcr);     /* data_out = d; clock = 0; */
-  *r0 = !(inb(msr) & 0x10);  /* *r0 = data_in;           */
-  for(i=0; i<delay; i++)
-    outb(d<<1 | 1, mcr);     /* data_out = d; clock = 1; */
-  *r1 = !(inb(msr) & 0x10);  /* *r1 = data_in;           */
+	int i;
+	for(i=0; i<delay; i++)
+		outb(d<<1 | 0, mcr);     /* data_out = d; clock = 0; */
+	*r0 = !(inb(msr) & 0x10);  /* *r0 = data_in;           */
+	for(i=0; i<delay; i++)
+		outb(d<<1 | 1, mcr);     /* data_out = d; clock = 1; */
+	*r1 = !(inb(msr) & 0x10);  /* *r1 = data_in;           */
 #endif
 }     // FIN void SendBitPlatform(char d, short *r0, short *r1, short delay)
 // *************************************************************************
