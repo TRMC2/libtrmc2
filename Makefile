@@ -30,12 +30,15 @@ CFLAGS=-O -Wall -Wextra
 NAME  = libtrmc2
 MAJOR = 2
 MINOR = 2
+SONAME=$(NAME).so.$(MAJOR)
+LIB=$(SONAME).$(MINOR)
 
 # Command options
 CC       = gcc
-CFLAGS  += -fPIC
 CPPFLAGS =
 LDLIBS   =
+override CFLAGS  += -fPIC
+override LDFLAGS += -shared -Wl,-soname,$(SONAME)
 
 # How to communicate with the TRMC2: If using the serial port, inform
 # TrmcLin.c. Otherwise link with libgpiod.
@@ -46,8 +49,6 @@ else
 endif
 
 # Files
-SONAME=$(NAME).so.$(MAJOR)
-LIB=$(SONAME).$(MINOR)
 HEADERS=Trmc.h TrmcBoard.h TrmcBoardA.h TrmcBoardB.h TrmcBoardC.h \
 	TrmcBoardD.h TrmcBoardE.h TrmcBoardF.h TrmcBoardG.h TrmcDac.h \
 	TrmcDef.h TrmcPlatform.h TrmcProto.h TrmcRegul.h TrmcRunLib.h
@@ -59,7 +60,7 @@ OBJS=$(SRC:%.c=%.o)
 # Rules
 
 $(LIB):	$(OBJS) Makefile
-	$(CC) -shared -Wl,-soname,$(SONAME) $(OBJS) $(LDLIBS) -o $@
+	$(CC) $(LDFLAGS) $(OBJS) $(LDLIBS) -o $@
 
 %.o:	%.c Makefile
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c $<
