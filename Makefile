@@ -76,13 +76,11 @@ cleanall:
 	rm -f tags $(OBJS) $(LIB)
 
 install:	$(LIB)
-		cp -a $^ $(LIBDIR)
-		chown root.root $(LIBDIR)/$(LIB)
+		install -m 644 $^ $(LIBDIR)
 		(cd $(LIBDIR) && ln -sf $(LIB) $(SONAME))
 		(cd $(LIBDIR) && ln -sf $(SONAME) $(NAME).so)
-		/sbin/ldconfig
-		cp -a Trmc.h $(INCLUDEDIR)
-		chown root.root $(INCLUDEDIR)/Trmc.h
+		-[ $$(id -u) = 0 ] && /sbin/ldconfig
+		install -m 644 Trmc.h $(INCLUDEDIR)
 
 uninstall:
 		rm -f $(LIBDIR)/$(NAME).so
