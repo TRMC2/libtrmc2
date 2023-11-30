@@ -86,6 +86,7 @@ uninstall:
 		rm -f $(LIBDIR)/$(NAME).so
 		rm -f $(LIBDIR)/$(SONAME)
 		rm -f $(LIBDIR)/$(LIB)
+		-[ $$(id -u) = 0 ] && /sbin/ldconfig
 		rm -f $(INCLUDEDIR)/Trmc.h
 
 # Dependencies
